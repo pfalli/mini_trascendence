@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Matchmaking Test</title></head>
+  <body>
+    <h1>Matchmaking Test</h1>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      const socket = io("http://localhost:3000");
+
+      socket.emit("join_matchmaking");
+
+      socket.on("match_found", (data) => {
+        console.log("✅ Match found!", data);
+        document.body.innerHTML += `<p>Match found in room: ${data.roomId}</p>`;
+      });
+    </script>
+  </body>
+</html>
