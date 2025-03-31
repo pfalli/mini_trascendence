@@ -102,6 +102,7 @@ model Match {
   score2    Int
   playedAt  DateTime @default(now())
 }
+```
 
 ## 🔐 Thema 6: Auth System (Local)
 
@@ -125,37 +126,40 @@ model Match {
 - Used a **simple queue-based matchmaking system**:
   ```ts
   let waitingPlayer: string | null = null;
+```
 
-    How it works:
+How it works:
 
-        When the first player connects and emits join_matchmaking, they are stored in waitingPlayer.
+When the first player connects and emits join_matchmaking, they are stored in waitingPlayer.
 
-        When the next player connects:
+When the next player connects:
 
-            A room is created:
-
+A room is created:
+```
 const roomId = `game-${waitingPlayer}-${socket.id}`;
+```
 
 Both players join that room using:
-
+```
 socket.join(roomId);
 io.to(waitingPlayer).socketsJoin(roomId);
+```
 
 A new game state is created and stored:
-
+```
         activeGames.set(roomId, {
           ball: { x: 50, y: 50, dx: 2, dy: 2 },
           paddles: { [waitingPlayer]: 50, [socket.id]: 50 },
           scores: { [waitingPlayer]: 0, [socket.id]: 0 }
         });
-
+```
 The server emits a match_found event to both players with their room and IDs:
-
+```
 io.to(roomId).emit('match_found', {
   roomId,
   players: [waitingPlayer, socket.id]
 });
-
+```
 This allowed full separation of game sessions via Socket.IO rooms, enabling multiple games in parallel without cross-talk.
 
 After starting a match, the waitingPlayer variable is reset to null for the next pair of players.
@@ -169,29 +173,31 @@ After starting a match, the waitingPlayer variable is reset to null for the next
   setInterval(() => {
     // game logic
   }, 1000 / 60);
-
+```
 Each active game has a GameState object stored in a Map<string, GameState>:
-
+```
 interface GameState {
   ball: { x: number; y: number; dx: number; dy: number };
   paddles: { [socketId: string]: number };
   scores: { [socketId: string]: number };
 }
+```
 
-🟡 Ball Movement
+###🟡 Ball Movement
 
     The ball moves on each loop iteration by updating its x and y positions:
-'
+```
     ball.x += ball.dx;
     ball.y += ball.dy;'
-
+```
 ⬆️⬇️ Wall Collision
 
     If the ball hits the top (y <= 0) or bottom (y >= 100) of the field:
-
+```
     if (ball.y <= 0 || ball.y >= 100) {
       ball.dy *= -1;
     }
+```
 
 🟥 Paddle Collision
 
@@ -218,27 +224,27 @@ interface GameState {
         Backend emits game_over with winner and score
 
         Interval is cleared:
-
+```
         clearInterval(interval);
         activeGames.delete(roomId);
-
-🔄 Ball Reset Function
+```
+### 🔄 Ball Reset Function
 
     After each score, the ball resets to the center with random direction:
-
+```
     function resetBall(ball) {
       ball.x = 50;
       ball.y = 50;
       ball.dx = (Math.random() > 0.5 ? 1 : -1) * 0.8;
       ball.dy = (Math.random() > 0.5 ? 1 : -1) * 0.8;
     }
-
-⚙️ Ball Speed
+```
+### ⚙️ Ball Speed
 
     Ball speed can be changed by modifying dx and dy
 
         Example for slower game:
-
+```
 dx = 0.8;
 dy = 0.8;
-
+```
