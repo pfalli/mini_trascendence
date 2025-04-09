@@ -5,11 +5,12 @@ import { prisma } from './prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = "supersecret"; // ⚠️ move to .env later
+const JWT_SECRET = "supersecret"; // move to .env
 
 const fastify = Fastify({
   logger: true
 });
+
 
 async function start() {
   try {
@@ -65,12 +66,24 @@ async function start() {
     }
 
     const activeGames = new Map<string, GameState>();
+    const paddleDirections = new Map<string, "up" | "down" | null>()
+    let roundCounter = 1;
 
-    function resetBall(ball: { x: number; y: number; dx: number; dy: number }) {
-      ball.x = 50;
-      ball.y = 50;
-      ball.dx = (Math.random() > 0.5 ? 1 : -1) * 0.8;
-      ball.dy = (Math.random() > 0.5 ? 1 : -1) * 0.8;
+    function resetBall(ball: { x: number; y: number; dx: number; dy: number }, roomId: string) {
+      ball.x = 50; // This is in percent, not pixels. You're using a virtual grid of 100x100 units.
+      ball.y = 30; // *** more in the middle Canvas 500x300 ***
+      ball.dx = 0;
+      ball.dy = 0;
+    
+      // Notify frontend about round number
+      io.to(roomId).emit('round_start', { round: roundCounter });
+      
+      // Wait 2 seconds, then launch ball
+      setTimeout(() => {
+        ball.dx = (Math.random() > 0.5 ? 1 : -1) * 0.8;
+        ball.dy = (Math.random() > 0.5 ? 1 : -1) * 0.8;
+        roundCounter++;
+      }, 2000);
     }
 
     io.on('connection', (socket) => {
@@ -105,12 +118,21 @@ async function start() {
             const players = Object.keys(paddles);
             const [left, right] = players;
 
+            for (const playerId of players) {
+              const dir = paddleDirections.get(playerId);
+              if (dir === "up") {
+                paddles[playerId] = Math.max(0, paddles[playerId] - 1.5); // move up
+              } else if (dir === "down") {
+                paddles[playerId] = Math.min(100, paddles[playerId] + 1.5); // move down
+              }
+            }
+
             // Move ball
             ball.x += ball.dx;
             ball.y += ball.dy;
 
             // Bounce off top and bottom
-            if (ball.y <= 0 || ball.y >= 100) {
+            if (ball.y <= 0 || ball.y >= 60) { // adjusted here because 100 was off-screen, because Canvas in frontend uses pixel scaling (x5) 
               ball.dy *= -1;
             }
 
@@ -119,7 +141,7 @@ async function start() {
               const paddleY = paddles[left];
               if (ball.y >= paddleY && ball.y <= paddleY + 20) {
                 ball.dx *= -1;
-                ball.x = 0;
+                ball.x = 2; // bouncing on the paddle
               } else {
                 scores[right]++;
                 if (scores[right] >= 5) {
@@ -142,7 +164,7 @@ async function start() {
                   activeGames.delete(roomId);
                   return;
                 }
-                resetBall(ball);
+                resetBall(ball, roomId);
               }
             }
 
@@ -151,7 +173,7 @@ async function start() {
               const paddleY = paddles[right];
               if (ball.y >= paddleY && ball.y <= paddleY + 20) {
                 ball.dx *= -1;
-                ball.x = 100;
+                ball.x = 98; // bouncing on the paddle
               } else {
                 scores[left]++;
                 if (scores[left] >= 5) {
@@ -174,7 +196,7 @@ async function start() {
                   activeGames.delete(roomId);
                   return;
                 }
-                resetBall(ball);
+                resetBall(ball, roomId);
               }
             }
 
@@ -192,12 +214,9 @@ async function start() {
         }
       });
 
-      socket.on('paddle_move', (data) => {
-        const room = [...socket.rooms].find(r => r !== socket.id);
-        if (!room) return;
-        const game = activeGames.get(room);
-        if (!game) return;
-        game.paddles[socket.id] = data.y;
+      socket.on("paddle_move", (data) => {
+        // console.log(`🛠️ Direction received from ${socket.id}:`, data.direction);
+        paddleDirections.set(socket.id, data.direction);
       });
 
       socket.on('disconnect', () => {

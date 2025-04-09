@@ -4,6 +4,14 @@
 
 ---
 
+## how to run it
+
+'''bash
+npm install ./frontend ./backend
+
+npm run dev ./frontend ./backend
+'''
+
 ## 🧠 Project Overview
 
 This project is a Single Page Application (SPA) that allows registered users to:
