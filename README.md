@@ -2,14 +2,19 @@
 
 > A full-stack, real-time multiplayer Pong platform with authentication, matchmaking, chat, and game history. Built from scratch using React, Fastify, Prisma, and Docker — fully compliant with the 42 school's ft_transcendence project rules.
 
+<p align="center">
+  <img src="demo.gif" alt="Pong demo" width="600"/>
+</p>
 ---
 
 ## how to run it
 
-'''bash
+'''
 npm install ./frontend ./backend
 
 npm run dev ./frontend ./backend
+
+cd .backend/ --> npx prisma generate
 '''
 
 ## 🧠 Project Overview
